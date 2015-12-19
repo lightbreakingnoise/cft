@@ -2,6 +2,7 @@ import select
 import socket
 import time
 import json
+import hashlib
 import sys
 import os
 from os.path import basename
@@ -66,9 +67,14 @@ if len(sys.argv) == 2:
 	x = open(sys.argv[1], "rb")
 	x.seek(0, os.SEEK_END)
 	length = x.tell()
+	x.seek(0, os.SEEK_SET)
+	m = hashlib.md5()
+	m.update(x.read())
+	z = m.hexdigest()
+	del(m)
 	x.close()
 	
-	outdata = {"act": "SEND", "to": toname, "file": basename(sys.argv[1]), "size": length}
+	outdata = {"act": "SEND", "to": toname, "file": basename(sys.argv[1]), "size": length, "md5": z}
 	try:
 		serv.send(json.dumps(outdata).encode() + b"\n")
 	except:
@@ -133,6 +139,7 @@ else:
 				pos = 0
 				operc = 0
 				length = indata['size']
+				m = hashlib.md5()
 				x = open(indata['file'], "wb")
 				while True:
 					dta = None
@@ -144,6 +151,7 @@ else:
 					if not dta:
 						break
 					
+					m.update(dta)
 					x.write(dta)
 					pos += len(dta)
 					nperc = round((pos*70.0)/length)
@@ -154,6 +162,12 @@ else:
 				x.close()
 				serv.close()
 				print("\nfinish")
+				z = m.hexdigest()
+				del(m)
+				if z == indata['md5']:
+					print("md5 checksum correct")
+				else:
+					print("md5 checksum incorrect")
 				sys.exit()
 
 			else:
