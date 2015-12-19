@@ -5,7 +5,7 @@ import json
 from threading import Thread
 
 class OneClient:
-	def __init__:(self, sock):
+	def __init__(self, sock):
 			self.tcp = sock
 			self.name = ""
 			self.intransfer = False
@@ -30,6 +30,7 @@ def transfering(sender, receiver):
 		
 		sender.LRT = time.time()
 		receiver.LRT = time.time()
+	receiver.LRT = time.time() - 60.0
 
 serv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 serv.bind(('0.0.0.0', 5050))
@@ -39,7 +40,7 @@ clients = []
 
 while True:
 	r, w, e = select.select(tcp_inputs, [], [], 0.05)
-	
+
 	for s in clients:
 		if time.time() - s.LRT >= 60.0:
 			s.tcp.close()
@@ -60,7 +61,7 @@ while True:
 			
 			else:
 				for s in clients:
-					if s.tcp == rd and !s.intransfer:
+					if s.tcp == rd and s.intransfer == False:
 						dta = None
 						try:
 							dta = rd.recv(1)
@@ -138,12 +139,12 @@ while True:
 								grant = False
 								for y in clients:
 									if y != s and len(y.name) > 2:
-										if y.name.lower() == indata['to'].lower():
+										if y.intransfer == False and y.name.lower() == indata['to'].lower():
 											grant = True
 											break
 								
 								if grant:
-									outdata = {"act": "SEND", "from": s.name, "file": indata['file']}
+									outdata = {"act": "SEND", "from": s.name, "file": indata['file'], "size": indata['size'], "md5": indata['md5']}
 									try:
 										y.tcp.send(json.dumps(outdata).encode() + b"\n")
 									except:
@@ -167,14 +168,14 @@ while True:
 								grant = False
 								for y in clients:
 									if y != s and len(y.name) > 2:
-										if y.name.lower() == indata['to'].lower():
+										if y.intransfer == False and y.name.lower() == indata['to'].lower():
 											grant = True
 											break
 								
 								if grant:
 									outdata = {"act": "DENIED", "info": "Member doesnt want this file"}
 									try:
-										y.tcp.send(json.dumps(outdata).encode + b"\n")
+										y.tcp.send(json.dumps(outdata).encode() + b"\n")
 									except:
 										y.tcp.close()
 										tcp_inputs.remove(y.tcp)
@@ -186,14 +187,14 @@ while True:
 								grant = False
 								for y in clients:
 									if y != s and len(y.name) > 2:
-										if y.name.lower() == indata['to'].lower():
+										if y.intransfer == False and y.name.lower() == indata['to'].lower():
 											grant = True
 											break
 								
 								if grant:
 									outdata = {"act": "START"}
 									try:
-										y.tcp.send(json.dumps(outdata).encode + b"\n")
+										y.tcp.send(json.dumps(outdata).encode() + b"\n")
 									except:
 										y.tcp.close()
 										tcp_inputs.remove(y.tcp)
@@ -203,6 +204,8 @@ while True:
 
 									y.intransfer = True
 									s.intransfer = True
-									t = Thread(target=transfering, args=(sender=y, receiver=s,))
+									t = Thread(target=transfering, args=(y, s,))
 									t.start()
 									
+						else:
+							s.buf += dta.decode("utf-8")
